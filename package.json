@@ -1,0 +1,68 @@
+{
+	"name": "directus-extension-import-excel",
+	"homepage": "https://github.com/FazCodeFR/directus-extension-import-excel#readme",
+	"description": "Import Excel files (.xlsx) without headers and manually map them to Directus collections.",
+	"icon": "upload_file",
+	"version": "1.1.1",
+	"keywords": [
+		"directus",
+		"directus-extension",
+		"directus-extension-bundle"
+	],
+	"author": "FazCode",
+	"license": "MIT",
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"directus:extension": {
+		"type": "bundle",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"entries": [
+			{
+				"type": "module",
+				"name": "import-excel-ui",
+				"source": "src/import-excel-ui/index.js"
+			},
+			{
+				"type": "endpoint",
+				"name": "import-excel-api",
+				"source": "src/import-excel-api/index.js"
+			}
+		],
+		"host": ">=10.10.10"
+	},
+	"scripts": {
+		"start": "vite",
+		"build": "directus-extension build",
+		"dev": "directus-extension build -w --no-minify",
+		"link": "directus-extension link",
+		"validate": "directus-extension validate",
+		"add": "directus-extension add"
+	},
+	"dependencies": {
+		"@directus/errors": "^2.0.2",
+		"@directus/sdk": "^20.0.1",
+		"multer": "^2.0.2",
+		"vue-i18n": "^11.1.11",
+		"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+	},
+	"devDependencies": {
+		"@directus/extensions-sdk": "16.0.2",
+		"vue": "^3.5.18"
+	},
+	"main": "src/index.js",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/FazCodeFR/directus-extension-import-excel.git"
+	},
+	"bugs": {
+		"url": "https://github.com/FazCodeFR/directus-extension-import-excel/issues"
+	},
+	"overrides": {
+	"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+	}
+}
