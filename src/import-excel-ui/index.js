@@ -1,9 +1,9 @@
-import ModuleComponent from './module.vue';
+import ModuleComponent from './module-enhanced.vue';
 
 export default {
 	id: 'import-excel',
 	name: 'Import Excel',
-	icon: 'sheets_rtl',
+	icon: 'upload_file',
 	routes: [
 		{
 			path: '',

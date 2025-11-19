@@ -101,7 +101,7 @@ function transformDate(value, format) {
     if (format === 'excel') {
       const numValue = Number(value);
       if (isNaN(numValue)) return value;
-      
+
       const excelEpoch = new Date(1899, 11, 30);
       const date = new Date(excelEpoch.getTime() + numValue * 86400000);
       const year = date.getFullYear();
@@ -142,6 +142,34 @@ function transformDate(value, format) {
   return value;
 }
 
+// 🔄 Función para aplicar transformaciones de datos
+function applyTransformations(value, transformations) {
+  if (!value || !transformations || transformations.length === 0) return value;
+
+  let result = String(value);
+
+  transformations.forEach(transform => {
+    switch (transform) {
+      case 'trim':
+        result = result.trim();
+        break;
+      case 'uppercase':
+        result = result.toUpperCase();
+        break;
+      case 'lowercase':
+        result = result.toLowerCase();
+        break;
+      case 'capitalize':
+        result = result.charAt(0).toUpperCase() + result.slice(1).toLowerCase();
+        break;
+      default:
+        break;
+    }
+  });
+
+  return result;
+}
+
 export default function registerEndpoint(router, { services, getSchema, logger }) {
   const { ItemsService } = services;
 
@@ -167,6 +195,7 @@ export default function registerEndpoint(router, { services, getSchema, logger }
       const mapping = JSON.parse(req.body.mapping);
       const fieldTypes = req.body.fieldTypes ? JSON.parse(req.body.fieldTypes) : {};
       const dateFormats = req.body.dateFormats ? JSON.parse(req.body.dateFormats) : {};
+      const transformations = req.body.transformations ? JSON.parse(req.body.transformations) : {};
       const keyField = req.body.keyField || null;
       const firstRowIsHeader = req.body.firstRowIsHeader === 'true';
 
@@ -204,20 +233,31 @@ export default function registerEndpoint(router, { services, getSchema, logger }
           for (const [colIndex, fieldName] of Object.entries(mapping)) {
             if (fieldName) {
               let value = row[colIndex];
-              
+
               // Verificar si el campo es de tipo fecha y tiene formato definido
               const fieldType = fieldTypes[colIndex];
               const dateFormat = dateFormats[colIndex];
-              
+              const columnTransformations = transformations[colIndex] || [];
+
               if (fieldType === 'date' && dateFormat && value !== undefined && value !== null) {
                 // Transformar la fecha
                 value = transformDate(value, dateFormat);
                 logger.info(`Fecha transformada en fila ${excelRowNumber}, columna ${colIndex}: ${row[colIndex]} → ${value}`);
               }
-              
-              // Convertir a string y limpiar espacios
-              const stringValue = value !== undefined && value !== null ? String(value).trim() : "";
-              
+
+              // Convertir a string
+              let stringValue = value !== undefined && value !== null ? String(value) : "";
+
+              // Aplicar transformaciones de datos
+              if (columnTransformations.length > 0 && stringValue !== "") {
+                const originalValue = stringValue;
+                stringValue = applyTransformations(stringValue, columnTransformations);
+                logger.info(`Transformación aplicada en fila ${excelRowNumber}, columna ${colIndex}: "${originalValue}" → "${stringValue}" [${columnTransformations.join(', ')}]`);
+              } else {
+                // Solo trim por defecto si no hay transformaciones específicas
+                stringValue = stringValue.trim();
+              }
+
               if (stringValue !== "") {
                 item[fieldName] = stringValue;
               }

@@ -4,9 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a **Directus extension bundle** that enables importing Excel files (.xlsx) without headers into Directus collections with manual field mapping. The extension consists of two parts:
-- **UI Module** (`import-excel-ui`): Vue 3 frontend interface for file upload and field mapping
-- **API Endpoint** (`import-excel-api`): Backend endpoint for processing Excel files and importing data
+This is a **Directus extension bundle** that provides a comprehensive Excel import solution with an advanced guided workflow. The extension enables importing Excel files (.xlsx) into Directus collections with intelligent field mapping, data validation, transformations, and detailed error reporting.
+
+**Key Components:**
+- **UI Module** (`import-excel-ui`): Vue 3 frontend with stepper/wizard interface
+- **API Endpoint** (`import-excel-api`): Backend endpoint for processing and importing data
+
+**Major Features:**
+- 5-step guided wizard workflow
+- Drag & drop file upload
+- Export Excel templates
+- Save/load mapping configurations
+- Pre-import data validation
+- Data transformations (trim, case conversion)
+- Real-time import progress tracking
+- Permission-based collection filtering
+- Comprehensive error categorization and reporting
 
 ## Build Commands
 
@@ -182,3 +195,156 @@ The extension provides comprehensive error reporting with the following features
 - Collections dropdown is disabled when no collections with create permissions are available
 - Error sections show count of errors per category
 - Visual hierarchy helps users quickly identify and address different types of issues
+
+## 🎨 Enhanced Workflow - 5-Step Wizard
+
+The extension uses a modern stepper/wizard interface to guide users through the import process:
+
+### Step 1: Select Collection
+- Filter and display only collections where user has create permissions
+- Load previously saved mapping configurations
+- Delete unused configurations
+- Visual indicators for saved configs with creation date
+
+**Files**: `module-enhanced.vue:step1`
+
+### Step 2: Upload File
+- **Drag & Drop Zone**: Visual feedback with hover effects
+- **Export Template**: Download pre-configured Excel template with:
+  - Column headers matching field labels
+  - Field types in second row
+  - Required/Optional indicators in third row
+- **File Information Display**: Shows filename, size, and row count
+- **First Row Header Toggle**: Auto-match headers to fields when enabled
+
+**Files**: `module-enhanced.vue:step2`, `import-excel-api/index.js:exportTemplate`
+
+### Step 3: Map Fields
+- **Column Mapping Table**: Grid layout with:
+  - Source column number
+  - Example data preview (up to 3 samples)
+  - Target field dropdown (prevents duplicates)
+  - Data type selector (text, number, date, email, URL)
+  - Date format selector (appears for date type)
+  - Transformations multi-select
+- **Save Configuration**: Save current mapping for reuse
+- **Configuration Management**: Load/delete saved mappings
+
+**Supported Transformations:**
+- `trim`: Remove leading/trailing spaces
+- `uppercase`: Convert to UPPERCASE
+- `lowercase`: Convert to lowercase
+- `capitalize`: Capitalize First Letter
+
+**Files**: `module-enhanced.vue:step3`, `import-excel-api/index.js:applyTransformations`
+
+### Step 4: Validate Data
+- **Pre-Import Validation**: Analyze data before import
+- **Validation Summary Cards**: Visual stats for valid/warning/error counts
+- **Issue List**: Detailed list of potential problems:
+  - Required field validation
+  - Data type validation (numbers, emails)
+  - Shows first 50 issues with option to see more
+- **Optional Key Field**: Select unique field for upsert mode
+- **Validation Results**: Categorized as errors (blocking) or warnings (non-blocking)
+
+**Validation Rules:**
+- Required fields must have values
+- Number fields should contain numeric values
+- Email fields should contain @ symbol
+- Date fields should match selected format
+
+**Files**: `module-enhanced.vue:runValidation`
+
+### Step 5: Confirm & Import
+- **Import Summary**: Review before executing:
+  - Collection name
+  - File name
+  - Total rows to process
+  - Number of mapped fields
+  - Operation type (Create Only vs Create or Update)
+  - Validation summary
+- **Real-Time Progress**:
+  - Animated progress bar (0-100%)
+  - Rows processed counter
+  - Import speed (rows/second)
+  - Estimated time remaining
+- **Import Results**: Categorized display:
+  - Created count
+  - Updated count
+  - Failed count with detailed error breakdown
+- **Error Categorization**: Separate sections for:
+  - Permission errors (red accent)
+  - Validation errors (orange accent)
+- **Copy Errors**: One-click copy all errors to clipboard
+
+**Files**: `module-enhanced.vue:startImport`, `module-enhanced.vue:step5`
+
+## 💾 Configuration Management
+
+### Saved Configurations (LocalStorage)
+- Configurations stored in browser localStorage
+- Each config includes:
+  - Name (user-defined)
+  - Collection
+  - Field mappings
+  - Data types
+  - Date formats
+  - Transformations
+  - Creation timestamp
+- Filter configurations by collection
+- Load configuration with one click
+- Delete unwanted configurations
+
+**Storage Key**: `import-excel-configs`
+**Files**: `module-enhanced.vue:saveConfiguration`, `module-enhanced.vue:loadConfiguration`
+
+## 🔧 Data Transformations
+
+### Frontend (UI)
+Users select transformations via multi-select dropdown for each column. Transformations are sent to backend as JSON object mapping column indices to transformation arrays.
+
+### Backend (API)
+The `applyTransformations()` function processes values in order:
+1. trim → removes spaces
+2. uppercase → converts to UPPERCASE
+3. lowercase → converts to lowercase
+4. capitalize → Capitalizes First Letter
+
+Transformations are logged for debugging: `Transformación aplicada en fila X, columna Y: "original" → "transformed" [trim, uppercase]`
+
+**Files**: `import-excel-api/index.js:145-171`, `module-enhanced.vue:transformations`
+
+## 📊 Template Export
+
+The export template feature generates an Excel file with:
+- **Row 1**: Field labels (translated if available)
+- **Row 2**: Field types (from Directus schema)
+- **Row 3**: Required/Optional indicators
+
+This helps users understand exactly what format to use for imports.
+
+**Files**: `module-enhanced.vue:exportTemplate`
+
+## 🎯 Validation System
+
+### Client-Side Validation
+- Real-time field mapping validation
+- Step completion checks
+- File type validation (.xlsx, .xls only)
+
+### Pre-Import Validation
+- Simulates import process
+- Checks required fields
+- Validates data types
+- Detects potential issues
+- Categorizes as errors or warnings
+- Limits display to first 50 issues for performance
+
+### Import-Time Validation
+- Directus schema validation
+- Permission checks
+- Unique constraint validation
+- Field type validation
+
+**Files**: `module-enhanced.vue:runValidation`, `import-excel-api/index.js:handleItemError`
