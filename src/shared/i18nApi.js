@@ -29,7 +29,22 @@ export const backendMessages = {
     failed: 'erreurs',
     none: 'aucun changement'
   },
-  // // IA translation for Turkish
+  // Spanish translations
+  'es-ES': {
+    missingFile: 'Falta el archivo Excel.',
+    missingCollection: 'Falta la colección de destino.',
+    missingMapping: 'Falta el mapeo.',
+    emptyFile: 'El archivo Excel está vacío.',
+    noValidItems: 'No hay elementos válidos para importar. Verifique el mapeo.',
+    missingKeyForUpsert: 'Un elemento no contiene el campo clave "{keyField}" requerido para la actualización.',
+    internalError: 'Error interno durante la importación de Excel: {error}',
+    processedItemsPrefix: 'elementos procesados:',
+    created: 'creados',
+    updated: 'actualizados',
+    failed: 'errores',
+    none: 'sin cambios'
+  },
+  // Turkish translations
   'tr-TR': {
     missingFile: 'Excel dosyası eksik.',
     missingCollection: 'Hedef koleksiyon eksik.',
@@ -45,3 +60,26 @@ export const backendMessages = {
     none: 'değişiklik yok'
   }
 };
+
+// Spanish variants - all point to es-ES translations
+const spanishBackendTranslations = backendMessages['es-ES'];
+backendMessages['es-MX'] = spanishBackendTranslations; // Mexico
+backendMessages['es-AR'] = spanishBackendTranslations; // Argentina
+backendMessages['es-CO'] = spanishBackendTranslations; // Colombia
+backendMessages['es-CL'] = spanishBackendTranslations; // Chile
+backendMessages['es-PE'] = spanishBackendTranslations; // Peru
+backendMessages['es-VE'] = spanishBackendTranslations; // Venezuela
+backendMessages['es-EC'] = spanishBackendTranslations; // Ecuador
+backendMessages['es-GT'] = spanishBackendTranslations; // Guatemala
+backendMessages['es-CU'] = spanishBackendTranslations; // Cuba
+backendMessages['es-BO'] = spanishBackendTranslations; // Bolivia
+backendMessages['es-DO'] = spanishBackendTranslations; // Dominican Republic
+backendMessages['es-HN'] = spanishBackendTranslations; // Honduras
+backendMessages['es-PY'] = spanishBackendTranslations; // Paraguay
+backendMessages['es-SV'] = spanishBackendTranslations; // El Salvador
+backendMessages['es-NI'] = spanishBackendTranslations; // Nicaragua
+backendMessages['es-CR'] = spanishBackendTranslations; // Costa Rica
+backendMessages['es-PA'] = spanishBackendTranslations; // Panama
+backendMessages['es-UY'] = spanishBackendTranslations; // Uruguay
+backendMessages['es-PR'] = spanishBackendTranslations; // Puerto Rico
+backendMessages['es'] = spanishBackendTranslations; // Generic Spanish

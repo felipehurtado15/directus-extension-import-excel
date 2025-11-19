@@ -203,6 +203,108 @@ export const messages = {
     importError: 'Une erreur est survenue pendant l\'importation.',
   },
 
+  // Spanish translations (Spain)
+  'es-ES': {
+    title: 'Importar Excel',
+    // Stepper
+    stepCollection: 'Colección',
+    stepUpload: 'Subir',
+    stepMapping: 'Mapeo',
+    stepValidation: 'Validación',
+    stepImport: 'Importar',
+    // Step 1
+    step1Title: 'Seleccionar colección de destino',
+    step1Description: 'Elija la colección donde desea importar sus datos.',
+    selectCollectionPlaceholder: 'Seleccionar una colección',
+    savedConfigurations: 'Configuraciones guardadas',
+    configurationName: 'Nombre de la configuración',
+    saveConfiguration: 'Guardar configuración',
+    saveThisMapping: 'Guardar este mapeo',
+    configurationSaved: '¡Configuración guardada exitosamente!',
+    configurationLoaded: '¡Configuración cargada exitosamente!',
+    confirmDeleteConfig: '¿Está seguro de que desea eliminar esta configuración?',
+    // Step 2
+    step2Title: 'Subir archivo Excel',
+    step2Description: 'Suba su archivo Excel o descargue una plantilla para comenzar.',
+    downloadTemplate: 'Descargar plantilla',
+    dragDropText: 'Arrastre y suelte su archivo Excel aquí',
+    orClickToSelect: 'o haga clic para seleccionar un archivo',
+    selectFile: 'Seleccionar archivo',
+    invalidFileType: 'Por favor seleccione un archivo Excel válido (.xlsx o .xls)',
+    rows: 'filas',
+    firstRowIsHeader: 'La primera fila contiene encabezados',
+    // Step 3
+    step3Title: 'Mapear campos',
+    step3Description: 'Asocie las columnas de Excel con los campos de la colección y configure las transformaciones de datos.',
+    sourceColumn: 'Columna origen',
+    column: 'Columna',
+    exampleData: 'Datos de ejemplo',
+    targetField: 'Campo destino',
+    dataType: 'Tipo de dato',
+    transformations: 'Transformaciones',
+    selectFieldPlaceholder: 'Seleccionar campo',
+    selectType: 'Seleccionar tipo',
+    selectDateFormat: 'Seleccionar formato de fecha',
+    noTransformation: 'Sin transformación',
+    transformTrim: 'Eliminar espacios',
+    transformUppercase: 'MAYÚSCULAS',
+    transformLowercase: 'minúsculas',
+    transformCapitalize: 'Capitalizar',
+    // Step 4
+    step4Title: 'Validar datos',
+    step4Description: 'Revise los resultados de validación antes de importar.',
+    validating: 'Validando datos...',
+    validateData: 'Validar datos',
+    validRows: 'Filas válidas',
+    warningRows: 'Advertencias',
+    errorRows: 'Errores',
+    validationIssues: 'Problemas de validación',
+    andMoreIssues: '...y {count} problemas más',
+    keyFieldTitle: 'Opcional: Campo clave para actualización',
+    keyFieldLabel: 'Campo clave (único)',
+    keyFieldHelp1: 'Este campo se usará para actualizar elementos existentes durante la importación.',
+    selectKeyFieldPlaceholder: 'Seleccionar un campo clave',
+    // Step 5
+    step5Title: 'Confirmar e importar',
+    step5Description: 'Revise el resumen e inicie el proceso de importación.',
+    importDetails: 'Detalles de importación',
+    collection: 'Colección',
+    file: 'Archivo',
+    totalRows: 'Total de filas',
+    mappedFields: 'Campos mapeados',
+    operation: 'Operación',
+    createOrUpdate: 'Crear o actualizar',
+    createOnly: 'Solo crear',
+    validationSummary: 'Resumen de validación',
+    valid: 'válidas',
+    warnings: 'advertencias',
+    errors: 'errores',
+    importing: 'Importando',
+    rowsPerSecond: 'filas/seg',
+    estimatedTime: 'Tiempo est.',
+    startImport: 'Iniciar importación',
+    importAnother: 'Importar otro archivo',
+    // Results
+    created: 'Creados',
+    updated: 'Actualizados',
+    failed: 'Fallidos',
+    errorsDetected: 'Errores detectados',
+    copyErrors: 'Copiar errores',
+    errorsCopied: '¡Errores copiados al portapapeles!',
+    errorsCopyFailed: 'Error al copiar errores al portapapeles.',
+    permissionErrors: 'Errores de permisos',
+    validationErrors: 'Errores de validación',
+    row: 'Fila',
+    key: 'clave',
+    errorCode: 'Código de error',
+    // Common
+    continue: 'Continuar',
+    back: 'Atrás',
+    noCollectionsWithPermissions: 'No hay colecciones disponibles',
+    noCollectionsWithPermissionsHelp: 'No tiene permisos de creación en ninguna colección. Por favor contacte a su administrador para obtener los permisos necesarios.',
+    importError: 'Ocurrió un error durante la importación.',
+  },
+
   // Turkish translations
   'tr-TR': {
     title: 'Excel İçe Aktar',
@@ -305,3 +407,26 @@ export const messages = {
     importError: 'İçe aktarma sırasında bir hata oluştu.',
   }
 };
+
+// Spanish variants - all point to es-ES translations
+const spanishTranslations = messages['es-ES'];
+messages['es-MX'] = spanishTranslations; // Mexico
+messages['es-AR'] = spanishTranslations; // Argentina
+messages['es-CO'] = spanishTranslations; // Colombia
+messages['es-CL'] = spanishTranslations; // Chile
+messages['es-PE'] = spanishTranslations; // Peru
+messages['es-VE'] = spanishTranslations; // Venezuela
+messages['es-EC'] = spanishTranslations; // Ecuador
+messages['es-GT'] = spanishTranslations; // Guatemala
+messages['es-CU'] = spanishTranslations; // Cuba
+messages['es-BO'] = spanishTranslations; // Bolivia
+messages['es-DO'] = spanishTranslations; // Dominican Republic
+messages['es-HN'] = spanishTranslations; // Honduras
+messages['es-PY'] = spanishTranslations; // Paraguay
+messages['es-SV'] = spanishTranslations; // El Salvador
+messages['es-NI'] = spanishTranslations; // Nicaragua
+messages['es-CR'] = spanishTranslations; // Costa Rica
+messages['es-PA'] = spanishTranslations; // Panama
+messages['es-UY'] = spanishTranslations; // Uruguay
+messages['es-PR'] = spanishTranslations; // Puerto Rico
+messages['es'] = spanishTranslations; // Generic Spanish

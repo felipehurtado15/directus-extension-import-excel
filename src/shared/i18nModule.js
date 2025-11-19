@@ -143,6 +143,49 @@ export const messages = {
     noCollectionsWithPermissions: 'Aucune collection disponible',
     noCollectionsWithPermissionsHelp: 'Vous n\'avez pas les permissions de création sur aucune collection. Veuillez contacter votre administrateur pour obtenir les permissions nécessaires.',
   },
+  // Spanish translations
+  'es-ES': {
+    title: 'Importar Excel',
+    chooseCollection: '1️⃣ Elija la colección de destino',
+    uploadExcelFile: '2️⃣ Suba un archivo Excel',
+    acceptedFormats: 'Formatos aceptados: .xlsx, .xls',
+    columnMapping: '3️⃣ Mapeo de columnas',
+    columnMappingHelp:
+      'Asocie cada columna del archivo con un campo en la base de datos. Se muestra una vista previa de las primeras filas.',
+    sourceColumn: 'Columna origen',
+    column: 'Columna',
+    exampleData: 'Datos de ejemplo',
+    targetField: 'Campo destino',
+    dataType: 'Tipo de dato',
+    dateFormat: 'Formato de fecha',
+    selectType: 'Seleccionar tipo',
+    selectDateFormat: 'Seleccionar formato de fecha',
+    firstRowIsHeader: 'La primera fila contiene encabezados',
+    keyFieldTitle: '🗝️ (Opcional) - Elija el campo clave para actualización',
+    keyFieldLabel: 'Campo clave (único)',
+    keyFieldHelp1:
+      'Opcional: Este campo se utilizará para actualizar elementos existentes durante la importación.',
+    keyFieldHelp2:
+      'El campo debe ser único en la colección de destino.',
+    importTitle: '4️⃣ Importar',
+    importSuccess: 'Importación exitosa.',
+    importButton: 'Importar',
+    importError: 'Ocurrió un error durante la importación.',
+    fileLabel: 'Archivo Excel',
+    filePlaceholder: 'Elija un archivo Excel',
+    selectCollectionPlaceholder: 'Seleccionar una colección',
+    selectKeyFieldPlaceholder: 'Seleccionar un campo clave',
+    selectFieldPlaceholder: 'Campo',
+    errorsDetected: 'Se detectaron errores en las siguientes filas:',
+    copyErrors: 'Copiar todos los errores',
+    permissionErrors: 'Errores de permisos',
+    validationErrors: 'Errores de validación',
+    row: 'Fila',
+    key: 'clave',
+    errorCode: 'Código de error',
+    noCollectionsWithPermissions: 'No hay colecciones disponibles',
+    noCollectionsWithPermissionsHelp: 'No tiene permisos de creación en ninguna colección. Por favor contacte a su administrador para obtener los permisos necesarios.',
+  },
   // IA translation for Turkish
   'tr-TR': {
     title: 'Excel İçe Aktar',
@@ -184,4 +227,27 @@ export const messages = {
     noCollectionsWithPermissionsHelp: 'Hiçbir koleksiyonda oluşturma izniniz yok. Lütfen gerekli izinleri almak için yöneticinizle iletişime geçin.',
   }
 };
+
+// Spanish variants - all point to es-ES translations
+const spanishTranslations = messages['es-ES'];
+messages['es-MX'] = spanishTranslations; // Mexico
+messages['es-AR'] = spanishTranslations; // Argentina
+messages['es-CO'] = spanishTranslations; // Colombia
+messages['es-CL'] = spanishTranslations; // Chile
+messages['es-PE'] = spanishTranslations; // Peru
+messages['es-VE'] = spanishTranslations; // Venezuela
+messages['es-EC'] = spanishTranslations; // Ecuador
+messages['es-GT'] = spanishTranslations; // Guatemala
+messages['es-CU'] = spanishTranslations; // Cuba
+messages['es-BO'] = spanishTranslations; // Bolivia
+messages['es-DO'] = spanishTranslations; // Dominican Republic
+messages['es-HN'] = spanishTranslations; // Honduras
+messages['es-PY'] = spanishTranslations; // Paraguay
+messages['es-SV'] = spanishTranslations; // El Salvador
+messages['es-NI'] = spanishTranslations; // Nicaragua
+messages['es-CR'] = spanishTranslations; // Costa Rica
+messages['es-PA'] = spanishTranslations; // Panama
+messages['es-UY'] = spanishTranslations; // Uruguay
+messages['es-PR'] = spanishTranslations; // Puerto Rico
+messages['es'] = spanishTranslations; // Generic Spanish
 
