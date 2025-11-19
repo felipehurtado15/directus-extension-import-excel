@@ -6,27 +6,90 @@ function formatMessage(template, params) {
   return template.replace(/\{(\w+)\}/g, (_, key) => params[key] || "");
 }
 
+function getErrorTypeDescription(code, type) {
+  // Map error codes to human-readable descriptions
+  const errorDescriptions = {
+    'FORBIDDEN': 'No tiene permisos para esta operación',
+    'RECORD_NOT_UNIQUE': 'El valor ya existe (debe ser único)',
+    'VALUE_TOO_LONG': 'El valor es demasiado largo',
+    'INVALID_PAYLOAD': 'Datos inválidos o mal formateados',
+    'FAILED_VALIDATION': 'Error de validación',
+    'FIELD_INVALID': 'Campo inválido o no permitido',
+    'CONTAINS_NULL_VALUES': 'El campo no puede estar vacío (requerido)',
+    'VALUE_OUT_OF_RANGE': 'El valor está fuera del rango permitido',
+  };
+
+  return errorDescriptions[code] || type || 'Error de validación';
+}
+
 function handleItemError(row, error, logger, errors, item = {}) {
-  const detail =
-    error?.map?.((e) => {
-        const field = e.extensions?.field || e.path || "inconnu";
-        const type = e.extensions?.type || "validation";
-        const code = e.code || "UNKNOWN_ERROR";
-        const value = item?.[field];
-        return `Champ "${field}" : ${type} (${code})` + (value !== undefined ? ` | valeur : "${value}"` : "");
-      })
-      .join("; ") ||
-    error?.message ||
-    error ||
-    "Validation failed";
+  let detail = '';
+  let code = 'UNKNOWN';
+  let errorType = 'validation';
 
-  const code =
-    error?.errors?.[0]?.code || error?.[0]?.code || error?.code || "UNKNOWN";
+  // Check if it's a permission error
+  if (error?.code === 'FORBIDDEN' || error?.message?.includes('FORBIDDEN')) {
+    detail = 'No tiene permisos para crear o actualizar elementos en esta colección. Contacte al administrador del sistema.';
+    code = 'FORBIDDEN';
+    errorType = 'permission';
+  }
+  // Handle array of errors
+  else if (Array.isArray(error)) {
+    detail = error.map((e) => {
+      const field = e.extensions?.field || e.path || "desconocido";
+      const fieldType = e.extensions?.type || "validation";
+      const fieldCode = e.code || "UNKNOWN_ERROR";
+      const value = item?.[field];
+      const description = getErrorTypeDescription(fieldCode, fieldType);
 
-  logger.error(`Erreur ligne ${row} : ${detail}`);
-  logger.error({ row, error: detail, code });
+      let errorMsg = `Campo "${field}": ${description}`;
+      if (value !== undefined && value !== null) {
+        errorMsg += ` | Valor proporcionado: "${value}"`;
+      }
+      return errorMsg;
+    }).join("; ");
+    code = error[0]?.code || "UNKNOWN";
+    errorType = error[0]?.extensions?.type || "validation";
+  }
+  // Handle error with errors property
+  else if (error?.errors && Array.isArray(error.errors)) {
+    detail = error.errors.map((e) => {
+      const field = e.extensions?.field || e.path || "desconocido";
+      const fieldType = e.extensions?.type || "validation";
+      const fieldCode = e.code || "UNKNOWN_ERROR";
+      const value = item?.[field];
+      const description = getErrorTypeDescription(fieldCode, fieldType);
 
-  errors.push({ row, error: detail, code });
+      let errorMsg = `Campo "${field}": ${description}`;
+      if (value !== undefined && value !== null) {
+        errorMsg += ` | Valor: "${value}"`;
+      }
+      return errorMsg;
+    }).join("; ");
+    code = error.errors[0]?.code || "UNKNOWN";
+    errorType = error.errors[0]?.extensions?.type || "validation";
+  }
+  // Handle single error object
+  else {
+    detail = error?.message || error?.toString() || "Error de validación";
+    code = error?.code || "UNKNOWN";
+
+    // Add field information if available
+    if (error?.extensions?.field) {
+      const field = error.extensions.field;
+      const value = item?.[field];
+      const description = getErrorTypeDescription(code, error.extensions.type);
+      detail = `Campo "${field}": ${description}`;
+      if (value !== undefined && value !== null) {
+        detail += ` | Valor: "${value}"`;
+      }
+    }
+  }
+
+  logger.error(`Error línea ${row} [${code}]: ${detail}`);
+  logger.error({ row, error: detail, code, type: errorType });
+
+  errors.push({ row, error: detail, code, type: errorType });
 }
 
 // 📅 Función para transformar fechas
@@ -257,6 +320,7 @@ export default function registerEndpoint(router, { services, getSchema, logger }
           row: err.row,
           error: err.error,
           code: err.code,
+          type: err.type || 'validation',
           key: results.find(r => r.row === err.row)?.key
         })),
       });
@@ -264,26 +328,62 @@ export default function registerEndpoint(router, { services, getSchema, logger }
       const lang = (req.headers["accept-language"] || "en-US").split(",")[0];
       const messages = backendMessages[lang] || backendMessages["en-US"];
 
-      const detail =
-        error?.map?.((e) => {
-            const field = e.extensions?.field || e.path || "inconnu";
-            const type = e.extensions?.type || "validation";
-            const code = e.code || "UNKNOWN_ERROR";
-            return `Champ "${field}" : ${type} (${code})`;
-          })
-          .join("; ") ||
-        error?.message ||
-        error ||
-        "Internal error";
+      let detail = '';
+      let code = 'UNKNOWN';
+      let statusCode = 500;
 
-      const code = error?.[0]?.code || error?.code || "UNKNOWN";
+      // Handle permission errors
+      if (error?.code === 'FORBIDDEN' || error?.message?.includes('FORBIDDEN')) {
+        detail = 'No tiene permisos para acceder a esta colección. Verifique que tiene permisos de creación/actualización en la colección seleccionada.';
+        code = 'FORBIDDEN';
+        statusCode = 403;
+      }
+      // Handle array of errors
+      else if (Array.isArray(error)) {
+        detail = error.map((e) => {
+          const field = e.extensions?.field || e.path || "desconocido";
+          const fieldType = e.extensions?.type || "validation";
+          const fieldCode = e.code || "UNKNOWN_ERROR";
+          const description = getErrorTypeDescription(fieldCode, fieldType);
+          return `Campo "${field}": ${description}`;
+        }).join("; ");
+        code = error[0]?.code || "UNKNOWN";
+      }
+      // Handle error with errors property
+      else if (error?.errors && Array.isArray(error.errors)) {
+        detail = error.errors.map((e) => {
+          const field = e.extensions?.field || e.path || "desconocido";
+          const fieldType = e.extensions?.type || "validation";
+          const fieldCode = e.code || "UNKNOWN_ERROR";
+          const description = getErrorTypeDescription(fieldCode, fieldType);
+          return `Campo "${field}": ${description}`;
+        }).join("; ");
+        code = error.errors[0]?.code || "UNKNOWN";
+      }
+      // Handle single error
+      else {
+        detail = error?.message || error?.toString() || "Error interno del servidor";
+        code = error?.code || "UNKNOWN";
 
-      logger.error(`Unexpected error: ${detail}`);
-      logger.error({ code, error: detail });
+        // Add more context for common errors
+        if (error?.message?.includes('unique')) {
+          detail += '. Este valor ya existe y debe ser único.';
+        } else if (error?.message?.includes('required')) {
+          detail += '. Faltan campos requeridos.';
+        } else if (error?.message?.includes('invalid')) {
+          detail += '. El formato de los datos no es válido.';
+        }
+      }
 
-      return res.status(error.statusCode || 500).json({
+      statusCode = error.statusCode || statusCode;
+
+      logger.error(`Error inesperado [${code}]: ${detail}`);
+      logger.error({ code, statusCode, error: detail, stack: error?.stack });
+
+      return res.status(statusCode).json({
         message: formatMessage(messages.internalError, { error: detail }),
         code,
+        details: detail
       });
     }
   });

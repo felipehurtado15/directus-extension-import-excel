@@ -1,5 +1,10 @@
 <template>
   <private-view :title="t('title')" class="import-excel-ui">
+    <div v-if="collections.length === 0" class="alert warning">
+      <strong>⚠️ {{ t('noCollectionsWithPermissions') }}</strong>
+      <p>{{ t('noCollectionsWithPermissionsHelp') }}</p>
+    </div>
+
     <div class="step">
       <h2>{{ t('chooseCollection') }}</h2>
       <VSelect
@@ -9,6 +14,7 @@
         item-value="value"
         :label="t('selectCollectionPlaceholder')"
         @update:modelValue="fetchFields"
+        :disabled="collections.length === 0"
       />
     </div>
 
@@ -136,7 +142,7 @@
 
     <div v-if="failedRows.length > 0" class="alert info">
       <div class="alert-header">
-        <strong>{{ t('errorsDetected') }}</strong>
+        <strong>{{ t('errorsDetected') }} ({{ failedRows.length }})</strong>
         <VButton
           @click="copyErrors"
           :xSmall="true"
@@ -145,11 +151,36 @@
           {{ t('copyErrors') }}
         </VButton>
       </div>
-      <ul class="error-list">
-        <li v-for="row in failedRows" :key="row.row">
-          Ligne {{ row.row }}{{ row.key ? ` (clé : ${row.key})` : '' }} : {{ row.error }}
-        </li>
-      </ul>
+
+      <!-- Permission errors section -->
+      <div v-if="permissionErrors.length > 0" class="error-section">
+        <h4 class="error-section-title">🔒 {{ t('permissionErrors') }} ({{ permissionErrors.length }})</h4>
+        <ul class="error-list permission-errors">
+          <li v-for="row in permissionErrors" :key="row.row" class="error-item permission-error">
+            <span class="error-icon">🔒</span>
+            <div class="error-content">
+              <strong>{{ t('row') }} {{ row.row }}{{ row.key ? ` (${t('key')}: ${row.key})` : '' }}</strong>
+              <p class="error-detail">{{ row.error }}</p>
+              <span class="error-code">{{ t('errorCode') }}: {{ row.code }}</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Validation errors section -->
+      <div v-if="validationErrors.length > 0" class="error-section">
+        <h4 class="error-section-title">⚠️ {{ t('validationErrors') }} ({{ validationErrors.length }})</h4>
+        <ul class="error-list validation-errors">
+          <li v-for="row in validationErrors" :key="row.row" class="error-item validation-error">
+            <span class="error-icon">⚠️</span>
+            <div class="error-content">
+              <strong>{{ t('row') }} {{ row.row }}{{ row.key ? ` (${t('key')}: ${row.key})` : '' }}</strong>
+              <p class="error-detail">{{ row.error }}</p>
+              <span class="error-code">{{ t('errorCode') }}: {{ row.code }}</span>
+            </div>
+          </li>
+        </ul>
+      </div>
     </div>
 
   </private-view>
@@ -164,8 +195,9 @@ import { messages } from '../shared/i18nModule';
 
 // Stores et API
 const api = useApi();
-const { useCollectionsStore } = useStores();
+const { useCollectionsStore, usePermissionsStore } = useStores();
 const collectionsStore = useCollectionsStore();
+const permissionsStore = usePermissionsStore();
 
 // État
 const selectedCollection = ref(null);
@@ -216,10 +248,18 @@ const { t } = useI18n({
   messages,
 });
 
-// 🔄 Retrieves visible collections
+// 🔄 Retrieves visible collections with create permissions
 const availableCollections = computed(() =>
   collectionsStore.visibleCollections
-    .filter((col) => col.schema && col.schema.name)
+    .filter((col) => {
+      // Filter only collections with schema
+      if (!col.schema || !col.schema.name) return false;
+
+      // Check if user has create permission on this collection
+      const hasCreatePermission = permissionsStore.hasPermission(col.collection, 'create');
+
+      return hasCreatePermission;
+    })
     .map((col) => ({
       value: col.collection,
       label: col.name,
@@ -466,6 +506,23 @@ const alertType = computed(() => {
   return 'info';
 });
 
+// Separate permission errors from validation errors
+const permissionErrors = computed(() => {
+  return failedRows.value.filter(row =>
+    row.type === 'permission' ||
+    row.code === 'FORBIDDEN' ||
+    row.error?.includes('permisos')
+  );
+});
+
+const validationErrors = computed(() => {
+  return failedRows.value.filter(row =>
+    row.type !== 'permission' &&
+    row.code !== 'FORBIDDEN' &&
+    !row.error?.includes('permisos')
+  );
+});
+
 // 🔁 Initialisation
 onMounted(async () => {
   await fetchProjectInfo();
@@ -614,16 +671,82 @@ onMounted(async () => {
   margin-bottom: 12px;
 }
 
+.error-section {
+  margin-top: 16px;
+}
+
+.error-section:first-child {
+  margin-top: 8px;
+}
+
+.error-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--theme--foreground);
+}
+
 .error-list {
   margin: 0;
-  padding-left: 20px;
-  max-height: 300px;
+  padding: 0;
+  list-style: none;
+  max-height: 400px;
   overflow-y: auto;
 }
 
-.error-list li {
-  margin-bottom: 6px;
+.error-item {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--theme--background);
+  border-left: 4px solid var(--theme--border-color);
+}
+
+.error-item.permission-error {
+  border-left-color: #d32f2f;
+  background: rgba(211, 47, 47, 0.05);
+}
+
+.error-item.validation-error {
+  border-left-color: #f57c00;
+  background: rgba(245, 124, 0, 0.05);
+}
+
+.error-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.error-content {
+  flex: 1;
+}
+
+.error-content strong {
+  display: block;
   font-size: 0.875rem;
+  margin-bottom: 4px;
+  color: var(--theme--foreground);
+}
+
+.error-detail {
+  margin: 4px 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--theme--foreground-subdued);
+}
+
+.error-code {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-family: var(--theme--fonts--monospace);
+  background: var(--theme--background-subdued);
+  border-radius: 3px;
+  color: var(--theme--foreground-subdued);
 }
 
 .alert.success {
