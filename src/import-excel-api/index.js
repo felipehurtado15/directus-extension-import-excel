@@ -170,6 +170,15 @@ function applyTransformations(value, transformations) {
   return result;
 }
 
+// 📦 Función para dividir array en chunks (batches)
+function chunkArray(array, chunkSize) {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
 export default function registerEndpoint(router, { services, getSchema, logger }) {
   const { ItemsService } = services;
 
@@ -198,10 +207,12 @@ export default function registerEndpoint(router, { services, getSchema, logger }
       const transformations = req.body.transformations ? JSON.parse(req.body.transformations) : {};
       const keyField = req.body.keyField || null;
       const firstRowIsHeader = req.body.firstRowIsHeader === 'true';
+      const batchSize = req.body.batchSize ? parseInt(req.body.batchSize, 10) : 100;
 
       logger.info(`Importando a colección: ${collectionName}`);
       logger.info(`Primera fila es header: ${firstRowIsHeader}`);
       logger.info(`Campo clave: ${keyField || 'ninguno'}`);
+      logger.info(`Tamaño de lote: ${batchSize}`);
 
       const itemsService = new ItemsService(collectionName, {
         schema,
@@ -274,6 +285,11 @@ export default function registerEndpoint(router, { services, getSchema, logger }
 
       logger.info(`${items.length} items válidos para procesar`);
 
+      // 📦 Batch processing configuration
+      const batches = chunkArray(items, batchSize);
+
+      logger.info(`🔄 Procesando en ${batches.length} lotes de hasta ${batchSize} items`);
+
       const results = [];
       const errors = [];
       let createdCount = 0;
@@ -287,56 +303,73 @@ export default function registerEndpoint(router, { services, getSchema, logger }
             message: formatMessage(messages.missingKeyForUpsert, { keyField }),
           });
 
-        const keyValues = [...new Set(items.map((item) => item[keyField]))];
-        logger.info(`Buscando items existentes con valores de clave: ${keyValues.join(', ')}`);
+        // Procesar cada batch
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+          const batch = batches[batchIndex];
+          const batchKeyValues = [...new Set(batch.map((item) => item[keyField]))];
 
-        const existingItems = await itemsService.readByQuery({
-          filter: { [keyField]: { _in: keyValues } },
-          limit: keyValues.length,
-        });
+          logger.info(`📦 Lote ${batchIndex + 1}/${batches.length}: Procesando ${batch.length} items`);
 
-        const existingMap = new Map(
-          existingItems.map((item) => [item[keyField], item])
-        );
+          // Buscar items existentes para este batch
+          const existingItems = await itemsService.readByQuery({
+            filter: { [keyField]: { _in: batchKeyValues } },
+            limit: batchKeyValues.length,
+          });
 
-        logger.info(`Encontrados ${existingMap.size} items existentes`);
+          const existingMap = new Map(
+            existingItems.map((item) => [item[keyField], item])
+          );
 
-        for (const item of items) {
-          const row = item.__rowIndex;
-          const keyValue = item[keyField];
-          delete item.__rowIndex; // Remover antes de insertar/actualizar
+          logger.info(`📦 Lote ${batchIndex + 1}: Encontrados ${existingMap.size} items existentes`);
 
-          try {
-            if (existingMap.has(keyValue)) {
-              const existing = existingMap.get(keyValue);
-              await itemsService.updateOne(existing.id, item);
-              results.push({ id: existing.id, action: "updated", row, key: keyValue });
-              updatedCount++;
-              logger.info(`✅ Fila ${row}: Actualizado (${keyField} = ${keyValue})`);
-            } else {
-              const newId = await itemsService.createOne(item);
-              results.push({ id: newId, action: "created", row, key: keyValue });
-              createdCount++;
-              logger.info(`✅ Fila ${row}: Creado (${keyField} = ${keyValue})`);
+          // Procesar items del batch
+          for (const item of batch) {
+            const row = item.__rowIndex;
+            const keyValue = item[keyField];
+            delete item.__rowIndex; // Remover antes de insertar/actualizar
+
+            try {
+              if (existingMap.has(keyValue)) {
+                const existing = existingMap.get(keyValue);
+                await itemsService.updateOne(existing.id, item);
+                results.push({ id: existing.id, action: "updated", row, key: keyValue });
+                updatedCount++;
+                logger.info(`✅ Fila ${row}: Actualizado (${keyField} = ${keyValue})`);
+              } else {
+                const newId = await itemsService.createOne(item);
+                results.push({ id: newId, action: "created", row, key: keyValue });
+                createdCount++;
+                logger.info(`✅ Fila ${row}: Creado (${keyField} = ${keyValue})`);
+              }
+            } catch (error) {
+              handleItemError(row, error, logger, errors, item);
             }
-          } catch (error) {
-            handleItemError(row, error, logger, errors, item);
           }
+
+          logger.info(`✅ Lote ${batchIndex + 1}/${batches.length} completado: ${batch.length} items procesados`);
         }
       } else {
-        // Modo INSERT: solo crear nuevos registros
-        for (const item of items) {
-          const row = item.__rowIndex;
-          delete item.__rowIndex; // Remover antes de insertar
+        // Modo INSERT: solo crear nuevos registros (con batch processing)
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+          const batch = batches[batchIndex];
 
-          try {
-            const newId = await itemsService.createOne(item);
-            results.push({ id: newId, action: "created", row });
-            createdCount++;
-            logger.info(`✅ Fila ${row}: Creado`);
-          } catch (error) {
-            handleItemError(row, error, logger, errors, item);
+          logger.info(`📦 Lote ${batchIndex + 1}/${batches.length}: Procesando ${batch.length} items`);
+
+          for (const item of batch) {
+            const row = item.__rowIndex;
+            delete item.__rowIndex; // Remover antes de insertar
+
+            try {
+              const newId = await itemsService.createOne(item);
+              results.push({ id: newId, action: "created", row });
+              createdCount++;
+              logger.info(`✅ Fila ${row}: Creado`);
+            } catch (error) {
+              handleItemError(row, error, logger, errors, item);
+            }
           }
+
+          logger.info(`✅ Lote ${batchIndex + 1}/${batches.length} completado: ${batch.length} items procesados`);
         }
       }
 
@@ -363,6 +396,11 @@ export default function registerEndpoint(router, { services, getSchema, logger }
           type: err.type || 'validation',
           key: results.find(r => r.row === err.row)?.key
         })),
+        batchInfo: {
+          totalBatches: batches.length,
+          batchSize: batchSize,
+          totalItems: items.length
+        }
       });
     } catch (error) {
       const lang = (req.headers["accept-language"] || "en-US").split(",")[0];

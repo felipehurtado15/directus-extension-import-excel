@@ -453,6 +453,18 @@
                 </div>
               </div>
 
+              <!-- Batch Processing Info -->
+              <div v-if="importResult.batchInfo && importResult.batchInfo.totalBatches > 1" class="batch-info">
+                <div class="batch-info-header">
+                  <span class="batch-icon">📦</span>
+                  <strong>Batch Processing</strong>
+                </div>
+                <div class="batch-info-details">
+                  <span>{{ importResult.batchInfo.totalItems }} items processed in {{ importResult.batchInfo.totalBatches }} batches</span>
+                  <span class="batch-size-info">({{ importResult.batchInfo.batchSize }} items per batch)</span>
+                </div>
+              </div>
+
               <!-- Failed Rows Details -->
               <div v-if="importResult.failed && importResult.failed.length > 0" class="failed-details">
                 <div class="alert-header">
@@ -579,6 +591,7 @@ const importProgress = ref(0);
 const processedRows = ref(0);
 const importSpeed = ref(0);
 const estimatedTimeLeft = ref(0);
+const batchSize = ref(100); // Default batch size for large files
 
 // Data type options
 const dataTypes = [
@@ -959,6 +972,7 @@ async function startImport() {
     formData.append('dateFormats', JSON.stringify(dateFormats.value));
     formData.append('transformations', JSON.stringify(transformations.value));
     formData.append('firstRowIsHeader', firstRowIsHeader.value ? 'true' : 'false');
+    formData.append('batchSize', batchSize.value.toString());
 
     if (keyField.value) {
       formData.append('keyField', keyField.value);
@@ -1859,6 +1873,40 @@ onMounted(async () => {
   font-size: 0.875rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
+/* Batch Processing Info */
+.batch-info {
+  background: var(--theme--background-subdued, #f5f5f5);
+  border-left: 4px solid var(--theme--primary, #6644ff);
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin: 16px 0;
+}
+
+.batch-info-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.9375rem;
+}
+
+.batch-icon {
+  font-size: 1.25rem;
+}
+
+.batch-info-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+  color: var(--theme--foreground-subdued);
+}
+
+.batch-size-info {
+  font-size: 0.8125rem;
   opacity: 0.8;
 }
 

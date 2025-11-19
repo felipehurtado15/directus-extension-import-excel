@@ -20,6 +20,7 @@ This is a **Directus extension bundle** that provides a comprehensive Excel impo
 - Real-time import progress tracking
 - Permission-based collection filtering
 - Comprehensive error categorization and reporting
+- Batch processing for large files (prevents timeouts)
 
 ## Build Commands
 
@@ -99,15 +100,21 @@ The extension is defined as a **bundle** in `package.json` with two entries:
    - `mapping`: JSON object mapping column indices to field names
    - `fieldTypes`: JSON object mapping column indices to data types
    - `dateFormats`: JSON object mapping column indices to date formats
+   - `transformations`: JSON object mapping column indices to transformation arrays
    - `keyField`: Optional unique field for upsert
    - `firstRowIsHeader`: Boolean flag
-6. Backend processes each row:
+   - `batchSize`: Number of items per batch (default: 100)
+6. Backend processes items in batches:
+   - Divides items into batches using configurable batch size
+   - Processes each batch sequentially
    - Skips header row if flagged
    - Transforms dates based on format mappings
-   - For upsert mode: queries existing items by key field and updates/creates accordingly
-   - For insert mode: creates all new items
+   - Applies data transformations (trim, case conversion)
+   - For upsert mode: queries existing items by key field (per batch) and updates/creates accordingly
+   - For insert mode: creates all new items (per batch)
    - Collects errors with row numbers
-7. Backend returns success/error summary with detailed row-level errors
+   - Logs progress per batch
+7. Backend returns success/error summary with detailed row-level errors and batch metadata
 
 ### Date Transformation
 
@@ -314,6 +321,56 @@ The `applyTransformations()` function processes values in order:
 Transformations are logged for debugging: `Transformación aplicada en fila X, columna Y: "original" → "transformed" [trim, uppercase]`
 
 **Files**: `import-excel-api/index.js:145-171`, `module-enhanced.vue:transformations`
+
+## 📦 Batch Processing for Large Files
+
+To prevent timeouts and memory issues when importing large Excel files, the extension implements batch processing:
+
+### How It Works
+- **Configurable Batch Size**: Default is 100 items per batch (configurable via frontend)
+- **Sequential Processing**: Items are divided into batches and processed sequentially
+- **Memory Optimization**: Only one batch is loaded into memory at a time
+- **Timeout Prevention**: Processing smaller batches prevents server timeouts on large imports
+
+### Backend Implementation
+The `chunkArray()` function divides the items array into chunks:
+```javascript
+function chunkArray(array, chunkSize) {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+```
+
+### Processing Flow
+1. Frontend sends `batchSize` parameter (default: 100)
+2. Backend divides items into batches using `chunkArray()`
+3. Each batch is processed sequentially:
+   - **UPSERT Mode**: Queries existing items for current batch only
+   - **INSERT Mode**: Creates items from current batch
+4. Progress is logged per batch: `📦 Lote X/Y: Procesando Z items`
+5. Results include batch metadata in response
+
+### Frontend Display
+When batch processing is used (>100 items), the results show:
+- Batch processing indicator with icon
+- Total items processed
+- Number of batches used
+- Items per batch
+
+### Benefits
+- ✅ Handles files with thousands of rows without timeouts
+- ✅ Reduced memory footprint
+- ✅ Better progress tracking and logging
+- ✅ Configurable batch size for different server capacities
+
+**Files**:
+- `import-excel-api/index.js:173-180` (chunkArray function)
+- `import-excel-api/index.js:286-373` (batch processing logic)
+- `module-enhanced.vue:582` (batchSize configuration)
+- `module-enhanced.vue:457-466` (batch info display)
 
 ## 📊 Template Export
 
