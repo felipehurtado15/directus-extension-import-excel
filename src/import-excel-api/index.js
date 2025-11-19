@@ -179,6 +179,35 @@ function chunkArray(array, chunkSize) {
   return chunks;
 }
 
+// 🔒 Función para agregar campos de auditoría automáticamente
+// Estos campos se completan con información del usuario en sesión
+function addAuditFields(item, userId, isUpdate = false) {
+  const now = new Date().toISOString();
+  const itemWithAudit = { ...item };
+
+  // Remover cualquier valor que el usuario haya intentado mapear
+  const auditFields = ['user_created', 'date_created', 'user_updated', 'date_updated', 'sort'];
+  auditFields.forEach(field => {
+    if (field in itemWithAudit) {
+      delete itemWithAudit[field];
+    }
+  });
+
+  if (isUpdate) {
+    // Al actualizar, solo agregar campos de última modificación
+    itemWithAudit.user_updated = userId;
+    itemWithAudit.date_updated = now;
+  } else {
+    // Al crear, agregar todos los campos de auditoría
+    itemWithAudit.user_created = userId;
+    itemWithAudit.date_created = now;
+    itemWithAudit.user_updated = userId;
+    itemWithAudit.date_updated = now;
+  }
+
+  return itemWithAudit;
+}
+
 export default function registerEndpoint(router, { services, getSchema, logger }) {
   const { ItemsService } = services;
 
@@ -295,6 +324,13 @@ export default function registerEndpoint(router, { services, getSchema, logger }
       let createdCount = 0;
       let updatedCount = 0;
 
+      // Obtener el ID del usuario en sesión
+      const userId = req.accountability?.user || null;
+
+      if (!userId) {
+        logger.warn('⚠️ No se pudo obtener el ID del usuario. Los campos de auditoría no se completarán.');
+      }
+
       if (keyField) {
         // Modo UPSERT: crear o actualizar según campo clave
         const missingKey = items.find((item) => !(keyField in item));
@@ -330,13 +366,19 @@ export default function registerEndpoint(router, { services, getSchema, logger }
 
             try {
               if (existingMap.has(keyValue)) {
+                // 🔒 Agregar campos de auditoría para actualización
+                const itemWithAudit = userId ? addAuditFields(item, userId, true) : item;
+
                 const existing = existingMap.get(keyValue);
-                await itemsService.updateOne(existing.id, item);
+                await itemsService.updateOne(existing.id, itemWithAudit);
                 results.push({ id: existing.id, action: "updated", row, key: keyValue });
                 updatedCount++;
                 logger.info(`✅ Fila ${row}: Actualizado (${keyField} = ${keyValue})`);
               } else {
-                const newId = await itemsService.createOne(item);
+                // 🔒 Agregar campos de auditoría para creación
+                const itemWithAudit = userId ? addAuditFields(item, userId, false) : item;
+
+                const newId = await itemsService.createOne(itemWithAudit);
                 results.push({ id: newId, action: "created", row, key: keyValue });
                 createdCount++;
                 logger.info(`✅ Fila ${row}: Creado (${keyField} = ${keyValue})`);
@@ -359,8 +401,11 @@ export default function registerEndpoint(router, { services, getSchema, logger }
             const row = item.__rowIndex;
             delete item.__rowIndex; // Remover antes de insertar
 
+            // 🔒 Agregar campos de auditoría para creación
+            const itemWithAudit = userId ? addAuditFields(item, userId, false) : item;
+
             try {
-              const newId = await itemsService.createOne(item);
+              const newId = await itemsService.createOne(itemWithAudit);
               results.push({ id: newId, action: "created", row });
               createdCount++;
               logger.info(`✅ Fila ${row}: Creado`);

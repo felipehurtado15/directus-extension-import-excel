@@ -653,9 +653,13 @@ const availableCollections = computed(() =>
 // Fetch fields from selected collection
 async function fetchFields(collection) {
   try {
+    // Campos de auditoría de Directus que se completan automáticamente
+    const auditFields = ['sort', 'user_created', 'date_created', 'user_updated', 'date_updated'];
+
     const response = await api.get(`/fields/${collection}`);
     contactFields.value = response.data.data
       .filter((f) => !f.field.startsWith('$'))
+      .filter((f) => !auditFields.includes(f.field)) // Excluir campos de auditoría
       .map((f) => {
         let label = f.field;
         const translations = f.meta?.translations;
@@ -672,6 +676,7 @@ async function fetchFields(collection) {
       });
 
     console.log(`✅ Fields retrieved for ${collection}:`, contactFields.value);
+    console.log(`🔒 Campos de auditoría excluidos del mapeo: ${auditFields.join(', ')}`);
   } catch (err) {
     console.error(`❌ Error retrieving fields for ${collection}:`, err);
   }
