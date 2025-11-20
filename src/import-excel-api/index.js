@@ -234,13 +234,13 @@ export default function registerEndpoint(router, { services, getSchema, logger }
       const fieldTypes = req.body.fieldTypes ? JSON.parse(req.body.fieldTypes) : {};
       const dateFormats = req.body.dateFormats ? JSON.parse(req.body.dateFormats) : {};
       const transformations = req.body.transformations ? JSON.parse(req.body.transformations) : {};
-      const keyField = req.body.keyField || null;
+      const keyFields = req.body.keyFields ? JSON.parse(req.body.keyFields) : [];
       const firstRowIsHeader = req.body.firstRowIsHeader === 'true';
       const batchSize = req.body.batchSize ? parseInt(req.body.batchSize, 10) : 100;
 
       logger.info(`Importando a colección: ${collectionName}`);
       logger.info(`Primera fila es header: ${firstRowIsHeader}`);
-      logger.info(`Campo clave: ${keyField || 'ninguno'}`);
+      logger.info(`Campos clave: ${keyFields.length > 0 ? keyFields.join(', ') : 'ninguno'}`);
       logger.info(`Tamaño de lote: ${batchSize}`);
 
       const itemsService = new ItemsService(collectionName, {
@@ -331,29 +331,48 @@ export default function registerEndpoint(router, { services, getSchema, logger }
         logger.warn('⚠️ No se pudo obtener el ID del usuario. Los campos de auditoría no se completarán.');
       }
 
-      if (keyField) {
-        // Modo UPSERT: crear o actualizar según campo clave
-        const missingKey = items.find((item) => !(keyField in item));
-        if (missingKey)
-          return res.status(400).json({
-            message: formatMessage(messages.missingKeyForUpsert, { keyField }),
-          });
+      if (keyFields.length > 0) {
+        // Modo UPSERT: crear o actualizar según campos clave (soporta múltiples campos)
+        // Validar que todos los items tengan todos los campos clave
+        for (const keyField of keyFields) {
+          const missingKey = items.find((item) => !(keyField in item));
+          if (missingKey) {
+            return res.status(400).json({
+              message: formatMessage(messages.missingKeyForUpsert, { keyField }),
+            });
+          }
+        }
+
+        // Función auxiliar para crear clave compuesta
+        const createCompositeKey = (item) => {
+          return keyFields.map(field => String(item[field] || '')).join('|');
+        };
 
         // Procesar cada batch
         for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
           const batch = batches[batchIndex];
-          const batchKeyValues = [...new Set(batch.map((item) => item[keyField]))];
 
           logger.info(`📦 Lote ${batchIndex + 1}/${batches.length}: Procesando ${batch.length} items`);
 
-          // Buscar items existentes para este batch
-          const existingItems = await itemsService.readByQuery({
-            filter: { [keyField]: { _in: batchKeyValues } },
-            limit: batchKeyValues.length,
+          // Construir filtro para múltiples campos clave
+          // Si tenemos múltiples campos, usamos _or con combinaciones _and
+          const batchFilters = batch.map(item => {
+            const andConditions = {};
+            keyFields.forEach(field => {
+              andConditions[field] = { _eq: item[field] };
+            });
+            return andConditions;
           });
 
+          // Buscar items existentes para este batch
+          const existingItems = await itemsService.readByQuery({
+            filter: { _or: batchFilters },
+            limit: batch.length * 2, // Margen de seguridad
+          });
+
+          // Crear mapa usando clave compuesta
           const existingMap = new Map(
-            existingItems.map((item) => [item[keyField], item])
+            existingItems.map((item) => [createCompositeKey(item), item])
           );
 
           logger.info(`📦 Lote ${batchIndex + 1}: Encontrados ${existingMap.size} items existentes`);
@@ -361,27 +380,28 @@ export default function registerEndpoint(router, { services, getSchema, logger }
           // Procesar items del batch
           for (const item of batch) {
             const row = item.__rowIndex;
-            const keyValue = item[keyField];
+            const compositeKey = createCompositeKey(item);
+            const keyDisplay = keyFields.map(f => `${f}=${item[f]}`).join(', ');
             delete item.__rowIndex; // Remover antes de insertar/actualizar
 
             try {
-              if (existingMap.has(keyValue)) {
+              if (existingMap.has(compositeKey)) {
                 // 🔒 Agregar campos de auditoría para actualización
                 const itemWithAudit = userId ? addAuditFields(item, userId, true) : item;
 
-                const existing = existingMap.get(keyValue);
+                const existing = existingMap.get(compositeKey);
                 await itemsService.updateOne(existing.id, itemWithAudit);
-                results.push({ id: existing.id, action: "updated", row, key: keyValue });
+                results.push({ id: existing.id, action: "updated", row, key: keyDisplay });
                 updatedCount++;
-                logger.info(`✅ Fila ${row}: Actualizado (${keyField} = ${keyValue})`);
+                logger.info(`✅ Fila ${row}: Actualizado (${keyDisplay})`);
               } else {
                 // 🔒 Agregar campos de auditoría para creación
                 const itemWithAudit = userId ? addAuditFields(item, userId, false) : item;
 
                 const newId = await itemsService.createOne(itemWithAudit);
-                results.push({ id: newId, action: "created", row, key: keyValue });
+                results.push({ id: newId, action: "created", row, key: keyDisplay });
                 createdCount++;
-                logger.info(`✅ Fila ${row}: Creado (${keyField} = ${keyValue})`);
+                logger.info(`✅ Fila ${row}: Creado (${keyDisplay})`);
               }
             } catch (error) {
               handleItemError(row, error, logger, errors, item);

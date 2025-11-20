@@ -331,8 +331,9 @@
                 </p>
               </div>
 
-              <!-- Optional Key Field for Upsert -->
-              <div v-if="contactFields.length > 0" class="key-field-section">
+              <!-- Optional Key Fields for Upsert (Multiple Selection) -->
+              <!-- Only show if user has update permission on selected collection -->
+              <div v-if="contactFields.length > 0 && hasUpdatePermission" class="key-field-section">
                 <h3>{{ t('keyFieldTitle') }}</h3>
                 <VSelect
                   v-model="keyField"
@@ -341,6 +342,7 @@
                   item-value="value"
                   :label="t('keyFieldLabel')"
                   :placeholder="t('selectKeyFieldPlaceholder')"
+                  multiple
                   clearable
                 />
                 <p class="info-text">{{ t('keyFieldHelp1') }}</p>
@@ -393,9 +395,13 @@
                   <span class="label">{{ t('mappedFields') }}:</span>
                   <span class="value">{{ getMappedFieldsCount() }}</span>
                 </div>
-                <div class="detail-row" v-if="keyField">
+                <div class="detail-row" v-if="keyField.length > 0">
                   <span class="label">{{ t('operation') }}:</span>
                   <span class="value badge">{{ t('createOrUpdate') }}</span>
+                </div>
+                <div class="detail-row" v-if="keyField.length > 0">
+                  <span class="label">{{ t('keyFields') }}:</span>
+                  <span class="value">{{ keyField.join(', ') }}</span>
                 </div>
                 <div class="detail-row" v-else>
                   <span class="label">{{ t('operation') }}:</span>
@@ -578,7 +584,7 @@ const dateFormats = ref({});
 const transformations = ref({});
 const importResult = ref(null);
 const projectLanguage = ref('');
-const keyField = ref('');
+const keyField = ref([]);
 const firstRowIsHeader = ref(false);
 const allRowsData = ref([]);
 const isDragging = ref(false);
@@ -979,8 +985,8 @@ async function startImport() {
     formData.append('firstRowIsHeader', firstRowIsHeader.value ? 'true' : 'false');
     formData.append('batchSize', batchSize.value.toString());
 
-    if (keyField.value) {
-      formData.append('keyField', keyField.value);
+    if (keyField.value.length > 0) {
+      formData.append('keyFields', JSON.stringify(keyField.value));
     }
 
     // Simulate progress
@@ -1033,7 +1039,7 @@ function resetImport() {
   transformations.value = {};
   validationResults.value = null;
   importResult.value = null;
-  keyField.value = '';
+  keyField.value = [];
   firstRowIsHeader.value = false;
   importProgress.value = 0;
   processedRows.value = 0;
@@ -1086,11 +1092,18 @@ function navigateToStep(index) {
 async function onCollectionSelected(collection) {
   await fetchFields(collection);
   loadSavedConfigurations();
+  // Clear key fields when changing collection (will be hidden if no update permission)
+  keyField.value = [];
 }
 
 // Computed properties
 const hasMappedFields = computed(() => {
   return Object.values(mapping.value).some(v => v !== '');
+});
+
+const hasUpdatePermission = computed(() => {
+  if (!selectedCollection.value) return false;
+  return permissionsStore.hasPermission(selectedCollection.value, 'update');
 });
 
 // Helper functions
